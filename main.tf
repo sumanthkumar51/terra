@@ -223,3 +223,39 @@ resource "aws_autoscaling_group" "my_asg" {
   load_balancers       = [aws_elb.my_elb.id]
   vpc_zone_identifier  = [aws_subnet.public_subnet.id, aws_subnet.second_subnet.id]
 }
+
+# VPC Module
+module "vpc" {
+  source = "./modules/vpc"
+
+  vpc_cidr             = "20.0.0.0/16"
+  public_subnet_cidr   = "20.0.1.0/24"
+  public_subnet_cidr2  = "20.0.2.0/24"
+  az1                  = "us-east-1a"
+  az2                  = "us-east-1b"
+  environment          = "production"
+}
+
+# ELB Module
+module "elb" {
+  source = "./modules/elb"
+
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.public_subnet_ids
+  environment = "production"
+}
+
+# ASG Module
+module "asg" {
+  source = "./modules/asg"
+
+  ami_id            = "ami-02457590d33d576c3"
+  instance_type     = "t2.micro"
+  security_group_id = module.elb.security_group_id
+  subnet_ids        = module.vpc.public_subnet_ids
+  elb_id            = module.elb.elb_dns_name
+  desired_capacity  = 2
+  max_size          = 3
+  min_size          = 1
+  environment       = "production"
+}
